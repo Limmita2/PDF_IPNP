@@ -36,7 +36,7 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
 
     BOLD_PATTERN = r'(Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|[МM][іi][сc]ц[еe]\s*[нH][аa][рp][оo]дж[еe][нH]{2}я\s*:|Громадянство\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
 
-    def add_bulleted_content(container, text, alignment=None, use_bullet_style=True):
+    def add_bulleted_content(container, text, alignment=None, use_bullet_style=True, bold_matches=True, bold_content=False):
         """Разбивает текст по шаблону и создает маркированный список для ключевых слов."""
         parts = re.split(BOLD_PATTERN, text)
         current_p = None
@@ -56,7 +56,7 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
                     current_p.alignment = alignment
                 
                 run = current_p.add_run(part)
-                run.bold = True
+                run.bold = bold_matches
                 run.font.name = 'Times New Roman'
                 run.font.size = Pt(14)
             else:
@@ -68,6 +68,7 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
                         current_p.alignment = alignment
                 
                 run = current_p.add_run(part)
+                run.bold = bold_content
                 run.font.name = 'Times New Roman'
                 run.font.size = Pt(14)
     
@@ -129,8 +130,14 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
              p = right_cell.paragraphs[0]
              p._element.getparent().remove(p._element)
              
-        # Отключаем маркеры (use_bullet_style=False), но сохраняем bold и новые строки
-        add_bulleted_content(right_cell, intro_text, alignment=WD_ALIGN_PARAGRAPH.LEFT, use_bullet_style=False)
+        # Очищаем текст от "д.н."
+        intro_text = intro_text.replace("д.н.", "").replace("  ", " ")
+        
+        # Инвертированное жирное выделение для первого блока:
+        # Ключевые слова (bold_matches=False) - обычные
+        # Контент (bold_content=True) - жирный
+        add_bulleted_content(right_cell, intro_text, alignment=WD_ALIGN_PARAGRAPH.LEFT, 
+                             use_bullet_style=False, bold_matches=False, bold_content=True)
     else:
         title_paragraph = right_cell.paragraphs[0]
         title_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -139,9 +146,6 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
         title_run.font.bold = True
         title_run.font.color.rgb = RGBColor(0, 0, 0)
     
-    doc.add_paragraph()
-    # doc.add_paragraph("_" * 80) # ВИДАЛЕНО
-    doc.add_paragraph()
     
 
     # Добавляем контент (вже відфільтрований без вступу)
