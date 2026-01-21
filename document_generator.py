@@ -95,7 +95,7 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     # doc.add_paragraph("_" * 80) # ВИДАЛЕНО
     doc.add_paragraph()
     
-    BOLD_PATTERN = r'(Місце\s*народження\s*:|Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
+    BOLD_PATTERN = r'(Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|Місце\s*народження\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
 
     def add_bulleted_content(doc, text, alignment=None):
         """Разбивает текст по шаблону и создает маркированный список для ключевых слов."""
@@ -186,6 +186,5 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     doc.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
-
 
 
