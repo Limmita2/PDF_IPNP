@@ -1,5 +1,5 @@
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.style import WD_STYLE_TYPE
 from reportlab.lib.pagesizes import A4
@@ -20,6 +20,13 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     Генерує документ Word з вибраних абзаців.
     """
     doc = Document()
+    
+    # Налаштування полів сторінки
+    section = doc.sections[0]
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(3)
+    section.right_margin = Cm(1.5)
     
     # Налаштування стилів
     style = doc.styles['Normal']
@@ -90,7 +97,7 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     
     BOLD_PATTERN = r'(Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
 
-    def add_bulleted_content(doc, text):
+    def add_bulleted_content(doc, text, alignment=None):
         """Разбивает текст по шаблону и создает маркированный список для ключевых слов."""
         parts = re.split(BOLD_PATTERN, text)
         current_p = None
@@ -105,6 +112,8 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
                 current_p = doc.add_paragraph(style='List Bullet')
                 current_p.paragraph_format.space_before = Pt(0)
                 current_p.paragraph_format.space_after = Pt(2)
+                if alignment is not None:
+                    current_p.alignment = alignment
                 
                 run = current_p.add_run(part)
                 run.bold = True
@@ -115,6 +124,8 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
                     # Если ключевых слов еще не было, создаем обычный абзац
                     current_p = doc.add_paragraph()
                     current_p.paragraph_format.space_after = Pt(2)
+                    if alignment is not None:
+                        current_p.alignment = alignment
                 
                 run = current_p.add_run(part)
                 run.font.name = 'Times New Roman'
@@ -168,7 +179,8 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
             paragraphs_list = content.split('\n')
             for i, p_text in enumerate(paragraphs_list):
                 if p_text.strip():
-                    add_bulleted_content(doc, p_text.strip())
+                    # Применяем выравнивание по центру для всех блоков кроме "Початок документа"
+                    p_c = add_bulleted_content(doc, p_text.strip(), alignment=WD_ALIGN_PARAGRAPH.JUSTIFY)
     
     buffer = io.BytesIO()
     doc.save(buffer)
