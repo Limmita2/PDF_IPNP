@@ -33,6 +33,43 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     font = style.font
     font.name = 'Times New Roman'
     font.size = Pt(14)
+
+    BOLD_PATTERN = r'(Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|[МM][іi][сc]ц[еe]\s*[нH][аa][рp][оo]дж[еe][нH]{2}я\s*:|Громадянство\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
+
+    def add_bulleted_content(container, text, alignment=None, use_bullet_style=True):
+        """Разбивает текст по шаблону и создает маркированный список для ключевых слов."""
+        parts = re.split(BOLD_PATTERN, text)
+        current_p = None
+        
+        for part in parts:
+            if not part:
+                continue
+            
+            # Проверяем, является ли часть ключевым словом
+            if re.fullmatch(BOLD_PATTERN, part):
+                # Начинаем новый абзац (маркированный или обычный)
+                style = 'List Bullet' if use_bullet_style else None
+                current_p = container.add_paragraph(style=style)
+                current_p.paragraph_format.space_before = Pt(0)
+                current_p.paragraph_format.space_after = Pt(2)
+                if alignment is not None:
+                    current_p.alignment = alignment
+                
+                run = current_p.add_run(part)
+                run.bold = True
+                run.font.name = 'Times New Roman'
+                run.font.size = Pt(14)
+            else:
+                if current_p is None:
+                    # Если ключевых слов еще не было, создаем обычный абзац
+                    current_p = container.add_paragraph()
+                    current_p.paragraph_format.space_after = Pt(2)
+                    if alignment is not None:
+                        current_p.alignment = alignment
+                
+                run = current_p.add_run(part)
+                run.font.name = 'Times New Roman'
+                run.font.size = Pt(14)
     
     # 1. ЗАГАЛЬНИЙ ЗАГОЛОВОК ДОКУМЕНТА (Блакитна полоса)
     t_top = doc.add_table(rows=1, cols=1)
@@ -84,52 +121,28 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
     right_cell.width = Inches(4.5)
     right_cell.vertical_alignment = 1
     
-    title_paragraph = right_cell.paragraphs[0]
-    title_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    title_run = title_paragraph.add_run(intro_text if intro_text else "Особисте досьє")
-    title_run.font.size = Pt(14)
-    title_run.font.bold = True
-    title_run.font.color.rgb = RGBColor(0, 0, 0) # ЧОРНИЙ КОЛІР
+    
+    # Використовуємо універсальну функцію форматування для всього тексту в клітинці
+    if intro_text:
+        # Видаляємо порожній параграф, який створюється автоматично
+        if len(right_cell.paragraphs) > 0 and not right_cell.paragraphs[0].text.strip():
+             p = right_cell.paragraphs[0]
+             p._element.getparent().remove(p._element)
+             
+        # Отключаем маркеры (use_bullet_style=False), но сохраняем bold и новые строки
+        add_bulleted_content(right_cell, intro_text, alignment=WD_ALIGN_PARAGRAPH.LEFT, use_bullet_style=False)
+    else:
+        title_paragraph = right_cell.paragraphs[0]
+        title_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        title_run = title_paragraph.add_run("Особисте досьє")
+        title_run.font.size = Pt(14)
+        title_run.font.bold = True
+        title_run.font.color.rgb = RGBColor(0, 0, 0)
     
     doc.add_paragraph()
     # doc.add_paragraph("_" * 80) # ВИДАЛЕНО
     doc.add_paragraph()
     
-    BOLD_PATTERN = r'(Mарка\s*:|заявник\s*:|Марка\s*:|свідок\s*\(учасник\)\s*:|ухилянт\s*:|Вид\s*:|правопорушник\s*:|Номер\s*дозволу\s*:|місце\s*проживання\s*:|телефони\s*:|Місце\s*народження\s*:|№\s*[А-ЯІЇЄҐ]{3}\s*\d{7}(?:\s*[А-ЯІЇЄҐ]{3}\s*\d{7})?\s*від)'
-
-    def add_bulleted_content(doc, text, alignment=None):
-        """Разбивает текст по шаблону и создает маркированный список для ключевых слов."""
-        parts = re.split(BOLD_PATTERN, text)
-        current_p = None
-        
-        for part in parts:
-            if not part:
-                continue
-            
-            # Проверяем, является ли часть ключевым словом
-            if re.fullmatch(BOLD_PATTERN, part):
-                # Начинаем новый маркированный список
-                current_p = doc.add_paragraph(style='List Bullet')
-                current_p.paragraph_format.space_before = Pt(0)
-                current_p.paragraph_format.space_after = Pt(2)
-                if alignment is not None:
-                    current_p.alignment = alignment
-                
-                run = current_p.add_run(part)
-                run.bold = True
-                run.font.name = 'Times New Roman'
-                run.font.size = Pt(14)
-            else:
-                if current_p is None:
-                    # Если ключевых слов еще не было, создаем обычный абзац
-                    current_p = doc.add_paragraph()
-                    current_p.paragraph_format.space_after = Pt(2)
-                    if alignment is not None:
-                        current_p.alignment = alignment
-                
-                run = current_p.add_run(part)
-                run.font.name = 'Times New Roman'
-                run.font.size = Pt(14)
 
     # Добавляем контент (вже відфільтрований без вступу)
     for item in filtered_content:
@@ -174,8 +187,6 @@ def generate_docx(data: dict, photo_path: str = None) -> bytes:
             p_h.paragraph_format.space_before = Pt(0)
             p_h.paragraph_format.space_after = Pt(0)
         
-        if content and header != "Початок документа":
-            # Разбиваем контент на абзацы по символу новой строки
             paragraphs_list = content.split('\n')
             for i, p_text in enumerate(paragraphs_list):
                 if p_text.strip():
